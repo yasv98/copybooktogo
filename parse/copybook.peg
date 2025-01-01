@@ -1,0 +1,95 @@
+{
+    // This generated code depends on functions from parser_helpers
+    package parse
+    
+    const astBuilderKey = "AST"
+    
+    // BuildAST parses a normalised copybook and returns the AST.
+    func BuildAST(copybook []byte) ([]*Record, error) {
+        // Initialise the generated parser with the AST builder.
+    	parsedAST, err := Parse("", copybook, InitState(astBuilderKey, &astBuilder{}))
+    	if err != nil {
+    		return nil, fmt.Errorf("failed to parse copybook: %w", err)
+    	}
+    
+    	ast, ok := parsedAST.([]*Record)
+    	if !ok {
+    		return nil, fmt.Errorf("failed to cast parsed records to *[]Record")
+    	}
+    
+    	return ast, nil
+    }
+}
+
+Copybook <- Data+ {
+	return getAST(c.state[astBuilderKey])
+}
+
+Data <- Space (CommentLine / Record / BlankLine / UnknownLine) (EOL / EOF)
+
+// CommentLine is a line that has a "*" character in the indicator area
+CommentLine <- '*' RestOfLine {
+    indicatorAreaColumn := 7
+    if c.pos.col == indicatorAreaColumn {
+        return fmt.Println("Ignoring comment line: ", string(c.text))
+    }
+    return nil, nil
+}
+
+// BlankLine is an empty line
+BlankLine <- &EOL {
+    return fmt.Println("Ignoring blank line")
+}
+
+// UnknownLine is a line that doesn't match any definitions
+UnknownLine <- RestOfLine {
+    return fmt.Println("Ignoring unknown line: ", string(c.text))
+}
+
+// Record is an entry that details the data structure and can span over more than one line
+Record <- level:Level SpacesOrEOLs identifier:Identifier clauses:(SpacesOrEOLs cl:Clause {return cl, nil})* DOT RestOfLine #{
+    return createAndAddRecordToAST(c.state[astBuilderKey], level, identifier, clauses)
+}
+Level <- [0-9][0-9]? {
+    return parseIntFromBytes(c.text)
+}
+Identifier <- &LetterCheck [A-Z0-9-:]+ {
+    return string(c.text), nil 
+}
+LetterCheck <- [0-9-:]* [A-Z] // An identifier must have at least one alphabetic character
+Clause <- (RedefinesClause / PictureClause / OccursClause)
+
+
+// Clauses
+RedefinesClause <- "REDEFINES" SpacesOrEOLs identifier:Identifier {
+    return getRedefinesClauseDetails(identifier)
+}
+
+PictureClause <- PicKeyword Space picString:PicString (SpacesOrEOLs Comp)? (SpacesOrEOLs Justified)? {
+    return getPictureClauseDetails(picString)
+}
+PicKeyword <- "PICTURE" / "PIC"
+PicString <- PicStartChar (!PicEnd .)* {
+    return string(c.text), nil
+}
+PicStartChar <- [X9ASVP]
+PicEnd <- DOT? Space
+Comp <- ("COMP-5" / "COMP-4" / "COMP-3" / "COMP-2" / "COMP-1" / "COMP") // Comp is ignored, won't effect received data structure
+Justified <- "JUSTIFIED" SpacesOrEOLs "RIGHT" // Justified is ignored as it is considered out of scope for this tool
+
+OccursClause <- "OCCURS" SpacesOrEOLs count:Count (SpacesOrEOLs "TIMES")? (SpacesOrEOLs IndexedBy)? {
+    return getOccursClauseDetails(count)
+}
+Count <- [0-9]+ {
+    return parseIntFromBytes(c.text)
+}
+IndexedBy <- "INDEXED BY" SpacesOrEOLs Identifier // IndexedBy is ignored, won't effect received data structure
+
+
+// Helpers
+DOT <- "."
+Space <- [ \t]+
+EOL <- [\n\r]
+EOF <- !.
+RestOfLine <- (!EOL .)*
+SpacesOrEOLs <- (Space / EOL)+
