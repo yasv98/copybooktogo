@@ -6,6 +6,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPicTypeFromString(t *testing.T) {
+	tests := map[string]struct {
+		Input       string
+		Expected    PicType
+		AssertError assert.ErrorAssertionFunc
+	}{
+		"Alpha":            {"alpha", Alpha, assert.NoError},
+		"Unsigned":         {"unsigned", Unsigned, assert.NoError},
+		"Signed":           {"signed", Signed, assert.NoError},
+		"Decimal":          {"decimal", Decimal, assert.NoError},
+		"Unknown":          {"unknown", Unknown, assert.NoError},
+		"Case insensitive": {"AlPhA", Alpha, assert.NoError},
+		"Invalid":          {"invalid", 0, assert.Error},
+		"Empty string":     {"", 0, assert.Error},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			result, err := PicTypeFromString(tt.Input)
+			tt.AssertError(t, err)
+			assert.Equal(t, tt.Expected, result)
+		})
+	}
+}
+
 func Test_parsePICType(t *testing.T) {
 	tests := map[string]struct {
 		Input    string

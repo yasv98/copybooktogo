@@ -9,3 +9,14 @@ func Map[A, B any](f func(A) B, list []A) []B {
 	}
 	return res
 }
+
+// MergeMaps merges multiple maps into a single map.
+func MergeMaps[M ~map[T]K, T comparable, K any](mapsToMerge ...M) M {
+	result := make(M)
+	for _, m := range mapsToMerge {
+		for key, value := range m {
+			result[key] = value
+		}
+	}
+	return result
+}

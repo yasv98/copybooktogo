@@ -7,6 +7,8 @@ import (
 	"slices"
 	"text/template"
 
+	"copybooktogo/util/generic"
+
 	"github.com/kenshaw/snaker"
 	"golang.org/x/tools/imports"
 
@@ -56,6 +58,11 @@ type FieldData struct {
 	PicGlobalEnd     int
 }
 
+type goGenerator struct {
+	pos            *positionTracker
+	picTypeMapping map[parse.PicType]string
+}
+
 type positionInfo struct {
 	localStart  int
 	globalStart int
@@ -68,14 +75,20 @@ type positionTracker struct {
 }
 
 // ToGoStructsData generates Go struct definitions from a COBOL copybook AST.
-func ToGoStructsData(ast []*parse.Record, copybookName, packageName string) ([]byte, error) {
+func ToGoStructsData(ast []*parse.Record, copybookName, packageName string, typeOverrides map[parse.PicType]string) ([]byte, error) {
 	if len(ast) == 0 {
 		return nil, fmt.Errorf("ast is empty")
 	}
 
+	goGen := goGenerator{
+		pos: newPositionTracker(),
+		// Merge default PIC type mappings with any configured overrides.
+		picTypeMapping: generic.MergeMaps(defaultTypeMapping(), typeOverrides),
+	}
+
 	data := templateParams{
 		Package: packageName,
-		Structs: buildStructData(copybookName, ast, newPositionTracker()),
+		Structs: goGen.buildStructData(copybookName, ast),
 	}
 
 	generatedCode, err := executeTemplate(goStructsGenTemplate, data)
@@ -99,11 +112,11 @@ func executeTemplate(genTemplate string, data templateParams) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func buildStructData(parentName string, records []*parse.Record, pos *positionTracker) []StructData {
+func (g *goGenerator) buildStructData(parentName string, records []*parse.Record) []StructData {
 	currentStruct := StructData{
 		StructVarName: toGoName(parentName),
 		Identifier:    parentName,
-		Fields:        buildFieldsData(records, parentName, pos),
+		Fields:        g.buildFieldsData(records, parentName),
 	}
 
 	// Recursively process nested struct fields.
@@ -111,45 +124,45 @@ func buildStructData(parentName string, records []*parse.Record, pos *positionTr
 	for _, field := range records {
 		if len(field.Children) > 0 {
 			// A field's children will start from the same global position as the parent field.
-			_, pos.globalPos = pos.getStoredPos(field.Identifier)
-			nestedStructs = slices.Concat(nestedStructs, buildStructData(field.Identifier, field.Children, pos))
+			_, g.pos.globalPos = g.pos.getStoredPos(field.Identifier)
+			nestedStructs = slices.Concat(nestedStructs, g.buildStructData(field.Identifier, field.Children))
 		}
 	}
 
 	return slices.Concat([]StructData{currentStruct}, nestedStructs)
 }
 
-func buildFieldsData(records []*parse.Record, parentName string, pos *positionTracker) []FieldData {
+func (g *goGenerator) buildFieldsData(records []*parse.Record, parentName string) []FieldData {
 	fields := make([]FieldData, 0, len(records))
 	fillerCount := 0
-	pos.localPos = 1
+	g.pos.localPos = 1
 
 	for _, rec := range records {
 		fillerCount = handleFillerName(rec, parentName, fillerCount)
 
 		// Build and store field data
-		fieldData := buildFieldData(rec, pos)
-		fieldData = handleRedefines(rec, fieldData, pos)
+		fieldData := g.buildFieldData(rec)
+		fieldData = handleRedefines(rec, fieldData, g.pos)
 		fields = append(fields, fieldData)
 
 		// Update position tracking
-		pos.storeAndAdvancePos(rec.Identifier, fieldData.PicSize)
+		g.pos.storeAndAdvancePos(rec.Identifier, fieldData.PicSize)
 	}
 
 	return fields
 }
 
-func buildFieldData(rec *parse.Record, pos *positionTracker) FieldData {
+func (g *goGenerator) buildFieldData(rec *parse.Record) FieldData {
 	varName := toGoName(rec.Identifier)
 	size := calculateSize(rec)
 
 	return FieldData{
 		FieldVarName:   varName,
-		VarType:        getVarType(rec, varName),
+		VarType:        getVarType(rec, varName, g.picTypeMapping),
 		PicSize:        size,
-		PicTag:         getPicTag(rec, size, pos.localPos),
-		PicGlobalStart: pos.globalPos,
-		PicGlobalEnd:   pos.globalPos + size - 1,
+		PicTag:         getPicTag(rec, size, g.pos.localPos),
+		PicGlobalStart: g.pos.globalPos,
+		PicGlobalEnd:   g.pos.globalPos + size - 1,
 	}
 }
 
@@ -185,12 +198,12 @@ func toGoName(s string) string {
 	return snaker.SnakeToCamelIdentifier(s)
 }
 
-func getVarType(rec *parse.Record, varName string) string {
+func getVarType(rec *parse.Record, varName string, picTypeMappings map[parse.PicType]string) string {
 	switch {
 	case len(rec.Children) == 0:
-		// TODO: When type overrides are added, merge with defaults and pass as an input to generation.
-		goType, ok := parse.DefaultTypeMapping()[rec.Pic.PicType]
+		goType, ok := picTypeMappings[rec.Pic.PicType]
 		if !ok {
+			// Default to string if no mapping is found.
 			goType = "string"
 		}
 
@@ -283,4 +296,14 @@ func (p *positionTracker) getStoredPos(identifier string) (int, int) {
 		panic(fmt.Sprint("position for ", identifier, " not found"))
 	}
 	return pos.localStart, pos.globalStart
+}
+
+func defaultTypeMapping() map[parse.PicType]string {
+	return map[parse.PicType]string{
+		parse.Unsigned: "uint",
+		parse.Signed:   "int",
+		parse.Decimal:  "decimal.Decimal",
+		parse.Alpha:    "string",
+		parse.Unknown:  "string",
+	}
 }
