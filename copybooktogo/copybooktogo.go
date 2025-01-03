@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"copybooktogo/generate"
-	"copybooktogo/normalise"
-	"copybooktogo/parse"
+	"github.com/yasv98/copybooktogo/generate"
+	"github.com/yasv98/copybooktogo/normalise"
+	"github.com/yasv98/copybooktogo/parse"
 )
 
 // Process reads a COBOL copybook file and generates Go struct definitions.

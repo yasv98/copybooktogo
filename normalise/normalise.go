@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"copybooktogo/util/generic"
+	"github.com/yasv98/copybooktogo/util/generic"
 )
 
 const (

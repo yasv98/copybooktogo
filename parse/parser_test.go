@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"copybooktogo/util/xrequire"
+	"github.com/yasv98/copybooktogo/util/xrequire"
 )
 
 func Test_ParseNormalisedCopybook(t *testing.T) {

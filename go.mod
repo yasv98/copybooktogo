@@ -1,9 +1,10 @@
-module copybooktogo
+module github.com/yasv98/copybooktogo
 
 go 1.23.0
 
 require (
 	github.com/carlmjohnson/versioninfo v0.22.5
+	github.com/google/go-cmp v0.6.0
 	github.com/kenshaw/snaker v0.4.2
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0

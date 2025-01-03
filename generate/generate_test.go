@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"copybooktogo/parse"
+	"github.com/yasv98/copybooktogo/parse"
 )
 
 func Test_GenerateGoStructsData(t *testing.T) {

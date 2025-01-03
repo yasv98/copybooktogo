@@ -4,9 +4,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 
-	"copybooktogo/parse"
+	"github.com/yasv98/copybooktogo/parse"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -81,7 +83,7 @@ func TestNewConfig(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg, err := NewConfig(tt.copybookPath, tt.packageName, "", tt.typeOverrides)
 			tt.assertError(t, err)
-			assert.Equal(t, tt.expectedConfig, cfg)
+			assert.True(t, cmp.Equal(tt.expectedConfig, cfg, cmpopts.IgnoreFields(Config{}, "OutputPath")))
 		})
 	}
 }

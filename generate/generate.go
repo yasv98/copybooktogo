@@ -7,12 +7,12 @@ import (
 	"slices"
 	"text/template"
 
-	"copybooktogo/util/generic"
+	"github.com/yasv98/copybooktogo/util/generic"
 
 	"github.com/kenshaw/snaker"
 	"golang.org/x/tools/imports"
 
-	"copybooktogo/parse"
+	"github.com/yasv98/copybooktogo/parse"
 )
 
 // TODO: Add version info to the generated attribute once tool is out of development.

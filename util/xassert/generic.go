@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"copybooktogo/util/generic"
+	"github.com/yasv98/copybooktogo/util/generic"
 )
 
 // EqualAll asserts that all elements are equal to the expected value.

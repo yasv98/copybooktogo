@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"copybooktogo/cmd"
+	"github.com/yasv98/copybooktogo/cmd"
 )
 
 func main() {

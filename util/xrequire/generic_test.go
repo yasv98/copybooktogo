@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"copybooktogo/util/xrequire/mocks"
+	"github.com/yasv98/copybooktogo/util/xrequire/mocks"
 )
 
 func TestSingle(t *testing.T) {
